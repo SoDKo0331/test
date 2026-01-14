@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import "./src/index.css";
 
 /**
  * Advanced single-page marketing site (React + TS + Tailwind)
