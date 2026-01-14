@@ -1,0 +1,8 @@
+{
+  "name": "Copy of Grand Melody VIP Karaoke",
+  "description": "A luxury VIP karaoke experience landing page and concierge app, featuring high-end suites, gourmet menus, and an AI-powered song concierge.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
