@@ -19,6 +19,17 @@ The pinnacle of private karaoke luxury. Grand Melody offers state-of-the-art aco
 - **Design**: Cinzel & Inter Typography, Royal Blue & Gold Palette
 - **Icons**: Material Symbols Outlined
 
+## 📂 Project Structure
+
+```text
+├── components/       # Modular UI components
+├── data/             # Static constants and content
+├── services/         # API and AI logic
+├── types/            # TypeScript interfaces
+├── App.tsx           # Main application shell
+└── index.tsx         # Entry point
+```
+
 ## 🚀 Getting Started
 
 1. **Clone the repository**:
@@ -36,9 +47,9 @@ The pinnacle of private karaoke luxury. Grand Melody offers state-of-the-art aco
 
 4. **Run development server**:
    ```bash
-   npm start
+   npm run dev
    ```
 
 ## 📜 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.

@@ -4,7 +4,7 @@ import { LOGO_URLS } from '../data/constants';
 
 export const Navigation: React.FC = () => {
   return (
-    <nav className="fixed w-full z-50 top-0 bg-royal-blue/95 border-b border-gold-primary/30 shadow-2xl">
+    <nav className="fixed w-full z-50 top-0 bg-royal-blue/95 border-b border-gold-primary/30 shadow-2xl backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col items-center py-4">
         <div className="mb-4">
           <img 

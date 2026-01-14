@@ -1,6 +1,6 @@
 {
-  "name": "Copy of Grand Melody VIP Karaoke",
-  "description": "A luxury VIP karaoke experience landing page and concierge app, featuring high-end suites, gourmet menus, and an AI-powered song concierge.",
+  "name": "Grand Melody VIP Karaoke",
+  "description": "The pinnacle of luxury VIP karaoke experiences. Featuring high-end suites, gourmet concierge services, and Gemini-powered song orchestration.",
   "requestFramePermissions": [
     "camera",
     "microphone"

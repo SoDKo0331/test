@@ -20,7 +20,7 @@ export const SuiteCard: React.FC<SuiteCardProps> = ({ suite }) => {
       </div>
       <div className="p-8 flex flex-col flex-1">
         <div className="flex justify-between items-start mb-3">
-          <h3 className="gold-heading text-xl md:text-2xl">{suite.name}</h3>
+          <h3 className="gold-heading text-xl md:text-2xl uppercase tracking-wider">{suite.name}</h3>
           <span className="text-[10px] tracking-[0.2em] text-gold-primary/70 uppercase">{suite.capacity}</span>
         </div>
         <p className="text-white/70 text-sm leading-relaxed mb-8 flex-1">

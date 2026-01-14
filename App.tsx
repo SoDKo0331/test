@@ -1,16 +1,16 @@
 
 import React from 'react';
-import { GoldButton } from './components/GoldButton';
-import { ConciergeChat } from './components/ConciergeChat';
 import { Navigation } from './components/Navigation';
 import { SuiteCard } from './components/SuiteCard';
 import { ExperienceItem } from './components/ExperienceItem';
 import { Footer } from './components/Footer';
+import { GoldButton } from './components/GoldButton';
+import { ConciergeChat } from './components/ConciergeChat';
 import { SUITES, EXPERIENCES, CONTACT_INFO, LOGO_URLS } from './data/constants';
 
 const App: React.FC = () => {
   return (
-    <div className="min-h-screen selection:bg-gold-primary selection:text-royal-blue">
+    <div className="min-h-screen selection:bg-gold-primary selection:text-royal-blue bg-royal-blue overflow-x-hidden">
       <Navigation />
 
       {/* Hero Header */}
@@ -18,7 +18,7 @@ const App: React.FC = () => {
         <div className="absolute inset-0 z-0">
           <img 
             alt="Luxury Karaoke Room" 
-            className="w-full h-full object-cover opacity-20 transform scale-110 motion-safe:animate-[pulse_8s_ease-in-out_infinite]" 
+            className="w-full h-full object-cover opacity-20 transform scale-110 motion-safe:animate-[pulse_10s_ease-in-out_infinite]" 
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuDkqPyAoMqIGRS5NHgWMBzXKOjKeu9A5EQCrY7Vy09aGBB_aKP8NvYecj0uHKtw1T92ssaZUIaYMBF2dGmg78zTyYUPgIu9IREyo9mNUMsfLx379Mef2_RVcTaUyM3aJoihk2-1dXY7MRo-CuR4nmAXzXW7MJzyWy9zrRAI5AIBc1XOaVqoi_YxgfX1nkELgHKjJfLv5_sH5IaLsiI9Fcn55jCgQdLSK9DdrnC_YEUFYupQoN6Avu_tphQeu9rc6bCSxc7PLvNI_J0" 
           />
           <div className="absolute inset-0 bg-gradient-to-b from-royal-blue/90 via-royal-blue/20 to-royal-blue"></div>
@@ -30,8 +30,8 @@ const App: React.FC = () => {
             className="h-32 md:h-64 mx-auto mb-8 drop-shadow-[0_0_35px_rgba(212,175,55,0.4)]" 
             src={LOGO_URLS.hero} 
           />
-          <h1 className="gold-heading text-4xl md:text-8xl mb-6 tracking-tighter uppercase leading-none">Grand Melody</h1>
-          <p className="gold-heading italic text-lg md:text-2xl mb-12 tracking-[0.4em] opacity-90">VIP Karaoke Experience</p>
+          <h1 className="gold-heading text-4xl md:text-8xl mb-6 tracking-tighter uppercase leading-none font-bold">Grand Melody</h1>
+          <p className="gold-heading italic text-lg md:text-2xl mb-12 tracking-[0.4em] opacity-90 uppercase">VIP Karaoke Experience</p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <GoldButton text="RESERVE NOW" revealText={CONTACT_INFO.phone} />
             <a 
