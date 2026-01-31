@@ -1,926 +1,1021 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { CheckCircle, XCircle, RefreshCw, Trophy, BookOpen, User, LogOut } from 'lucide-react';
 
-/**
- * ✅ Responsive + Product images improvement
- * - Horizontal category bar auto-scrolls to active
- * - Better responsive layout (mobile-first)
- * - Product cards now have an image section (real image if exists, otherwise premium placeholder)
- * - Simple image resolver: uses item.image if provided, else tries `./assets/menu/<category>/<slug>.jpg`
- *
- * NOTE:
- * - Put your images inside:  /public/assets/menu/<category>/
- *   Example: /public/assets/menu/beer/sengur.jpg
- * - Or set `image` on items directly.
- */
+const CLearningApp = () => {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userName, setUserName] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState(null);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [userAnswer, setUserAnswer] = useState('');
+  const [showResult, setShowResult] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [explanation, setExplanation] = useState('');
+  const [score, setScore] = useState({ correct: 0, total: 0 });
 
-// -------------------- Menu data --------------------
-const menuData = {
-  beer: [
-    { name: 'Sengur', size: '0.5L', price: 9500, image: null },
-    { name: 'Kaltenberg', size: '0.5L', price: 12000, image: null },
-    { name: 'Tiger', size: '0.5L', price: 10000, image: null },
-    { name: 'Asahi', size: '0.33L', price: 12500, image: null },
-    { name: 'Altangobi', size: '0.33L', price: 10000, image: null },
-    { name: 'Soju Good Day', size: '', price: 19000, image: null },
-    { name: 'Tsingtao', size: '0.33L', price: 10500, image: null },
-    { name: 'Heineken', size: '0.33L', price: 10500, image: null },
-    { name: 'Kirin Ichiban', size: '0.33L', price: 11000, image: null },
-    { name: 'Cass Fresh', size: '0.5L', price: 11500, image: null },
-    { name: 'Krush', size: '0.5L', price: 11500, image: null },
-  ],
-  softDrinks: [
-    { name: 'Bonaqua/Bubble/Alkaline Water', price: 5000, image: null },
-    { name: 'Millenia/Bubble/Cola/Sprite', price: 6000, image: null },
-    { name: 'Orgiluun/Fruit', price: 6000, image: null },
-    { name: 'Ginger Ale/Soda/Tonic', price: 7000, image: null },
-    { name: 'Red Bull', price: 12000, image: null },
-    { name: 'Juice 1L', price: 18000, image: null },
-    { name: 'Conditions', price: 22000, image: null },
-  ],
-  hotDrinks: [
-    { name: 'English Black Tea', price: 6000, image: null },
-    { name: 'Americano', price: 8000, image: null },
-    { name: 'Latte', price: 8500, image: null },
-  ],
-  vodka: [
-    { name: 'Eden', sizes: [{ size: '50ML', price: 8000 }, { size: '0.7L', price: 109000 }, { size: '1L', price: 139000 }], image: null },
-    { name: 'Evok', sizes: [{ size: '50ML', price: 8000 }, { size: '0.7L', price: 139000 }], image: null },
-    { name: 'Velvet', sizes: [{ size: '50ML', price: 9000 }, { size: '0.7L', price: 119000 }, { size: '1L', price: 149000 }], image: null },
-    { name: 'Koskenkorva', sizes: [{ size: '50ML', price: 13000 }, { size: '0.7L', price: 169000 }], image: null },
-    { name: 'Zubrowka Biola', sizes: [{ size: '0.7L', price: 149000 }, { size: '1L', price: 189000 }], image: null },
-    { name: 'Zubrowka Bison Grass', sizes: [{ size: '0.7L', price: 179000 }, { size: '1L', price: 219000 }], image: null },
-    { name: 'Finlandia', sizes: [{ size: '50ML', price: 13000 }, { size: '0.7L', price: 179000 }, { size: '1L', price: 239000 }], image: null },
-    { name: 'Absolut', sizes: [{ size: '50ML', price: 14000 }, { size: '0.7L', price: 189000 }, { size: '1L', price: 249000 }], image: null },
-    { name: 'Beluga', sizes: [{ size: '0.7L', price: 309000 }, { size: '1L', price: 379000 }], image: null },
-  ],
-  whisky: [
-    { name: 'Johnnie Walker', sizes: [{ size: '50ML', price: 14000 }, { size: '0.7L', price: 199000 }, { size: '1L', price: 259000 }], image: null },
-    { name: 'Ballantines', sizes: [{ size: '50ML', price: 15000 }, { size: '0.7L', price: 219000 }, { size: '1L', price: 289000 }], image: null },
-    { name: 'Jack Daniels', sizes: [{ size: '0.7L', price: 239000 }, { size: '1L', price: 299000 }], image: null },
-    { name: 'Wild Turkey', sizes: [{ size: '50ML', price: 15000 }, { size: '0.7L', price: 259000 }], image: null },
-    { name: 'Chivas', sizes: [{ size: '0.7L', price: 299000 }, { size: '1L', price: 379000 }], image: null },
-    { name: 'Jameson', sizes: [{ size: '50ML', price: 19000 }, { size: '0.7L', price: 279000 }, { size: '1L', price: 359000 }], image: null },
-    { name: 'Tenjaku (Japan)', sizes: [{ size: '0.7L', price: 309000 }], image: null },
-    { name: 'Glenmorangie', sizes: [{ size: '0.7L', price: 489000 }], image: null },
-  ],
-  wine: [
-    { name: "Baron d'Arignac Sweet (White)", price: 69000, image: null },
-    { name: 'Calvet Medium Dry (White)', price: 89000, image: null },
-    { name: 'La Baume Dry (White)', price: 119000, image: null },
-    { name: "Baron d'Arignac Sweet (Red)", price: 69000, image: null },
-    { name: 'Calvet Medium Dry (Red)', price: 89000, image: null },
-    { name: 'La Baume Dry (Red)', price: 119000, image: null },
-    { name: 'Paul Bernard (Sparkling)', price: 68000, image: null },
-    { name: 'Freixenet (Sparkling)', price: 98000, image: null },
-  ],
-  ginTequila: [
-    { name: "Gordon's", sizes: [{ size: '50ML', price: 13500 }, { size: 'Bottle', price: 189000 }, { size: '1L', price: 249000 }], image: null },
-    { name: 'Olmeca Gold', sizes: [{ size: '50ML', price: 13500 }, { size: 'Bottle', price: 189000 }], image: null },
-    { name: 'Sierra', sizes: [{ size: '50ML', price: 14500 }, { size: 'Silver Bottle 0.7L', price: 100000 }, { size: 'Barister Bottle', price: 179000 }], image: null },
-  ],
-  liqueur: [
-    { name: 'Baileys', size: '0.7L', price: 199000, image: null },
-    { name: 'Jagermister', size: '0.7L', price: 209000, image: null },
-    { name: 'Mollys', size: '0.7L', price: 129000, image: null },
-  ],
-  food: [
-    { name: 'Монгол хоолны цуглуулга', nameEn: 'Mongolian Food Set', description: 'Үхрийн хавирга, Бууз, Хуушуур, Цуйван', price: 95000, image: null },
-    { name: 'Тахиан махан цуг луулга', nameEn: 'Chicken Set', description: 'Тахианы гуя, Тахианы мөч, Шаржигнуур, Салат, Хуурсан нарийн ногоо', price: 95000, image: null },
-    { name: 'Махан цуг луулга', nameEn: 'Meat Set', description: 'Салат, хуурсан нарийн ногоо, Гахайн нуруу, Үхрийн хавирга, Тахианы гуя, Тахианы мөч', price: 100000, image: null },
-    { name: 'Шорлогны цуг луулга', nameEn: 'Grilled Set', description: 'Гахайн нуруу, Тахиа, Хонь, Салат, Хуурсан нарийн ногоо', price: 110000, image: null },
-    { name: 'Хуушуур', nameEn: 'Khuushuur', description: '5 pcs', price: 20000, image: null },
-    { name: 'Бууз', nameEn: 'Buuz', description: '8 pcs', price: 20000, image: null },
-    { name: 'Цуйван', nameEn: 'Tsuivan', price: 20000, image: null },
-    { name: 'Crispy Chicken', description: 'Шаржигнуур тахиа', price: 23000, image: null },
-    { name: 'Chicken with Sweet Sauce', nameEn: 'Чихэрлэг соустай тахиа', price: 23000, image: null },
-    { name: 'Pork T-Bone Steak', nameEn: 'Гахайн нуруу', description: 'Гахайн нуруу, Шарсан төмс, Ногооны салат', price: 25000, image: null },
-    { name: 'Үхрийн Шарсан Хавирга', nameEn: 'Beef Ribs', description: 'Хавирга, Шарсан төмс, Шинэ ногооны салат', price: 25000, image: null },
-  ],
-  pizza: [
-    { name: 'Хавай пицца', nameEn: 'Hawaii Pizza', price: 39000, image: null },
-    { name: 'Салями пицца', nameEn: 'Salami Pizza', price: 39000, image: null },
-    { name: 'Шарсан төмс', nameEn: 'French Fries', price: 9000, image: null },
-    { name: 'Булгуги пицца', nameEn: 'Bulgogi Pizza', price: 39000, image: null },
-    { name: 'Маханд дүрлагсад', nameEn: 'Meat Lovers Pizza', price: 42000, image: null },
-  ],
-  snacks: [
-    { name: 'Gum / Бөхь', price: 4500, image: null },
-    { name: 'Peanuts / Самар', price: 9000, image: null },
-    { name: 'Chips / Чипс', price: 15000, image: null },
-    { name: 'Merci & Toffee / Амттан', price: 26000, image: null },
-  ],
-  packages: [
-    {
-      name: 'Beer Set',
-      price: 200000,
-      items: ['Tsingtao 10', 'Bonaqua 3', 'Cola 3', 'Chips 1'],
-      bonus: 'Bonus 1 hour free',
-      birthday: true,
-      image: null,
-    },
-    {
-      name: 'Eden Set',
-      price: 280000,
-      items: ['Eden 0.7L 1', 'Сэнгүр 6', 'Bonaqua 3', 'Cola 3'],
-      bonus: 'Bonus 2 hours free + French Fries',
-      birthday: true,
-      image: null,
-    },
-    {
-      name: 'Soju Set',
-      price: 290000,
-      items: ['Soju 4', 'Krush Beer 6', 'Bonaqua 3', 'Cola 3', 'Crispy Chicken', 'French Fries'],
-      bonus: 'Bonus 2 hours free',
-      birthday: true,
-      image: null,
-    },
-    {
-      name: 'Gin Set',
-      price: 350000,
-      items: ['Gin 1', 'Soda or Tonic 6', 'Alkaline Water 3', 'Chips 1', 'Nuts 1'],
-      bonus: 'Bonus 2 hours free',
-      birthday: true,
-      image: null,
-    },
-    {
-      name: 'Vodka Set',
-      price: 440000,
-      items: ['Finlandia 0.7L 1', 'Sengur/Tiger 6', 'Bonaqua 3', 'Cola 3', 'French Fries 1'],
-      bonus: 'Bonus 2 hours free + 1 Pizza',
-      birthday: true,
-      image: null,
-    },
-    {
-      name: 'Whisky Set',
-      price: 490000,
-      items: ['Ballantines/Jonnie Walker 1', 'Tsingtao/Haineken 8', 'Alkaline Water 3', 'Cola 3', 'French Fries 1'],
-      bonus: 'Bonus 2 hours free + 1 Pizza',
-      birthday: true,
-      image: null,
-    },
-    {
-      name: 'Grand Melody Set A',
-      price: 890000,
-      items: ['Finlandia 0.7L 2', 'Tsingtao/Heineken 10', 'Cola/Sprite 8', 'Alkaline Water 8', 'Mixed Meat Platter 2'],
-      bonus: 'Bonus 3 hours free + 1 Pizza',
-      birthday: true,
-      image: null,
-    },
-    {
-      name: 'Grand Melody Set B',
-      price: 1190000,
-      items: ['Jameson 0.7L 2', 'Tsingtao/Kirin 12', 'Alkaline Water 10', 'Cola 10', 'French Fries 2', 'Mixed Meat Platter 2'],
-      bonus: 'Bonus 4 hours free + 1 Pizza',
-      birthday: true,
-      image: null,
-    },
-  ],
-};
-
-type Category =
-  | 'beer'
-  | 'softDrinks'
-  | 'hotDrinks'
-  | 'vodka'
-  | 'whisky'
-  | 'wine'
-  | 'ginTequila'
-  | 'liqueur'
-  | 'food'
-  | 'pizza'
-  | 'snacks'
-  | 'packages';
-
-const categoryNames: Record<Category, { mn: string; en: string }> = {
-  beer: { mn: 'Шар айраг', en: 'Beer' },
-  softDrinks: { mn: 'Ундаа', en: 'Soft Drinks' },
-  hotDrinks: { mn: 'Халуун ундаа', en: 'Hot Drinks' },
-  vodka: { mn: 'Водка', en: 'Vodka' },
-  whisky: { mn: 'Виски', en: 'Whisky' },
-  wine: { mn: 'Дарс', en: 'Wine' },
-  ginTequila: { mn: 'Жин ба Текила', en: 'Gin & Tequila' },
-  liqueur: { mn: 'Ликер', en: 'Liqueur' },
-  food: { mn: 'Хоол', en: 'Food' },
-  pizza: { mn: 'Пицца', en: 'Pizza' },
-  snacks: { mn: 'Зууш', en: 'Snacks' },
-  packages: { mn: 'Багц', en: 'Packages' },
-};
-
-// -------------------- Helpers --------------------
-const slugify = (s: string) =>
-  s
-    .toLowerCase()
-    .trim()
-    .replace(/['’]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-
-const buildAssetPath = (category: Category, name: string) =>
-  `/assets/menu/${category}/${slugify(name)}.jpg`; // put images in /public/assets/menu/<category>/
-
-const prettyCategoryKey = (category: Category) => categoryNames[category];
-
-const hasImage = (src?: string | null) => !!src && typeof src === 'string' && src.length > 0;
-
-function ImageBlock({
-  src,
-  alt,
-  badge,
-}: {
-  src?: string | null;
-  alt: string;
-  badge?: string;
-}) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/25 bg-gradient-to-br from-[#151B4D]/5 to-[#1A237E]/10">
-      {/* 16:10 ratio */}
-      <div className="aspect-[16/10] w-full">
-        {hasImage(src) ? (
-          <img
-            src={src as string}
-            alt={alt}
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-          />
-        ) : (
-          <div className="h-full w-full flex items-center justify-center relative">
-            <div className="absolute inset-0 opacity-10">
-              <img src="/logo.png" alt="" className="w-full h-full object-contain" />
-            </div>
-            <div className="relative z-10 text-center px-6">
-              <div className="mx-auto mb-3 h-10 w-10 rounded-full bg-[#D4AF37]/15 flex items-center justify-center">
-                <svg className="h-6 w-6 text-[#D4AF37]/70" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 14.5h-2V11h2v5.5zm0-7h-2V7h2v2.5z" />
-                </svg>
-              </div>
-              <p className="text-sm text-gray-700/80">
-                Add product photo in <span className="font-semibold">/public/assets/menu/...</span>
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {badge && (
-        <div
-          style={{ fontFamily: 'Cinzel, serif' }}
-          className="absolute left-3 top-3 rounded-lg bg-[#D4AF37] px-3 py-1 text-[10px] uppercase tracking-widest font-bold text-[#151B4D]"
-        >
-          {badge}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// -------------------- App --------------------
-export default function App() {
-  const [activeCategory, setActiveCategory] = useState<Category>('packages');
-  const [language, setLanguage] = useState<'mn' | 'en'>('mn');
-  const [showBooking, setShowBooking] = useState(false);
-  const [query, setQuery] = useState('');
-
-  // ✅ FIX: horizontal category auto-scroll
-  const navRef = useRef<HTMLDivElement | null>(null);
-  const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-
-  useEffect(() => {
-    const el = btnRefs.current[activeCategory];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
-  }, [activeCategory]);
-
-  const scrollNavBy = (dx: number) => navRef.current?.scrollBy({ left: dx, behavior: 'smooth' });
-
-  const formatPrice = (price: number) => `${price.toLocaleString()}₮`;
-
-  const categoryTitle = prettyCategoryKey(activeCategory)[language];
-
-  const visibleItems = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const data: any = (menuData as any)[activeCategory] ?? [];
-    if (!q) return data;
-
-    // Search name + nameEn + description
-    return data.filter((it: any) => {
-      const t = [
-        it?.name,
-        it?.nameEn,
-        it?.description,
-        ...(Array.isArray(it?.items) ? it.items : []),
+  // Сэдвүүд болон тестүүд
+  const topics = {
+    variables: {
+      title: 'Хувьсагч ба Өгөгдлийн Төрөл',
+      icon: '📦',
+      questions: [
+        {
+          question: 'int x = 5; float y = x; printf("%f", y); Гаралт юу байх вэ?',
+          options: ['5', '5.0', '5.000000', 'Алдаа'],
+          correct: '5.000000',
+          explanation: 'int-г float руу хөрвүүлэхэд автомат хөрвүүлэлт хийгдэнэ. printf("%f") нь 6 орны нарийвчлалтайгаар 5.000000 гэж хэвлэнэ.'
+        },
+        {
+          question: 'char c = "A"; Энэ тохиолдолд юу болох вэ?',
+          options: ['Зөв ажиллана', 'Compiler алдаа', 'Warning', 'Runtime алдаа'],
+          correct: 'Compiler алдаа',
+          explanation: 'char хувьсагч нь нэг тэмдэгт (\'A\') хадгална. "A" нь тэмдэгт мөр (pointer) учир төрөл тохирохгүй. Зөв нь: char c = \'A\';'
+        },
+        {
+          question: 'int a; printf("%d", a); Юу хэвлэгдэх вэ?',
+          options: ['0', 'Хог утга', 'NULL', 'Алдаа'],
+          correct: 'Хог утга',
+          explanation: 'Анхдагч утга өгөөгүй локал хувьсагч санах ойд байсан хог утгыг агуулна. Үүнийг "хог утга" эсвэл "тодорхойгүй утга" гэнэ.'
+        },
+        {
+          question: 'sizeof(int) == sizeof(long) үргэлж үнэн үү?',
+          options: ['Тийм', 'Үгүй', 'Зөвхөн 32-bit систем дээр', 'Зөвхөн 64-bit систем дээр'],
+          correct: 'Үгүй',
+          explanation: 'С хэлд өгөгдлийн төрлийн хэмжээ нь платформоос хамаарна. 32-bit системд хоёулаа 4 байт байж болох ч 64-bit дээр long нь 8 байт байдаг.'
+        },
+        {
+          question: 'unsigned int x = -1; printf("%u", x); Гаралт ойролцоогоор юу вэ?',
+          options: ['-1', '0', '4294967295', 'Алдаа'],
+          correct: '4294967295',
+          explanation: 'unsigned int нь сөрөг тоо хадгалж чадахгүй. -1 нь хоёртын кодоор бүх битүүд 1 байх утга бөгөөд энэ нь unsigned дээр хамгийн их утга болно (2³²-1).'
+        },
+        {
+          question: 'int x = 10, y = 20; printf("%d", sizeof(x + y)); Гаралт юу вэ (32-bit)?',
+          options: ['4', '8', '30', 'Алдаа'],
+          correct: '4',
+          explanation: 'sizeof нь илэрхийллийг тооцоолохгүй, зөвхөн төрлийн хэмжээг буцаана. x + y нь int төрөлтэй, int нь 4 байт.'
+        },
+        {
+          question: 'double d = 3.14; int i = (int)d; printf("%d", i); Гаралт юу вэ?',
+          options: ['3', '3.14', '4', 'Алдаа'],
+          correct: '3',
+          explanation: 'Explicit хөрвүүлэлт (type casting) нь double-г int руу хөрвүүлэхэд бутархай хэсгийг хасна. 3.14 → 3.'
+        },
+        {
+          question: 'char c = 65; printf("%c", c); Юу хэвлэгдэх вэ?',
+          options: ['65', 'A', 'a', 'Алдаа'],
+          correct: 'A',
+          explanation: 'ASCII кодоор 65 нь \'A\' үсэг юм. %c format нь тоог тэмдэгт болгож хэвлэнэ.'
+        },
+        {
+          question: 'int x = 5; x = x++; printf("%d", x); Гаралт юу вэ?',
+          options: ['5', '6', 'Тодорхойгүй', '0'],
+          correct: 'Тодорхойгүй',
+          explanation: 'Энэ бол тодорхойгүй үйл ажиллагаа (undefined behavior). Нэг илэрхийлэлд хувьсагчийг хоёр удаа өөрчлөж болохгүй.'
+        },
+        {
+          question: 'const int x = 10; x = 20; Юу болох вэ?',
+          options: ['x = 20 болно', 'Compiler алдаа', 'Warning', 'Runtime алдаа'],
+          correct: 'Compiler алдаа',
+          explanation: 'const хувьсагчийн утгыг өөрчлөх боломжгүй. Compiler compile хийх үед алдаа өгнө.'
+        },
+        {
+          question: 'int a = 5, b = 2; float c = a / b; printf("%.1f", c); Гаралт?',
+          options: ['2.5', '2.0', '2.500000', 'Алдаа'],
+          correct: '2.0',
+          explanation: 'a / b нь integer division (бүхэл тоон хуваалт) юм. 5 / 2 = 2, дараа нь 2.0 болж float-д хадгалагдана. float хуваалт хийхийн тулд: (float)a / b'
+        },
+        {
+          question: 'short s = 32767; s = s + 1; printf("%d", s); Гаралт юу вэ?',
+          options: ['32768', '-32768', 'Алдаа', '0'],
+          correct: '-32768',
+          explanation: 'signed short-ийн хамгийн их утга 32767. Түүнээс их болоход integer overflow болж сөрөг тал руу эргэнэ (wraparound).'
+        },
+        {
+          question: 'printf("%d", sizeof(char)); Гаралт үргэлж юу вэ?',
+          options: ['1', '2', '4', 'Системээс хамаарна'],
+          correct: '1',
+          explanation: 'С хэлний стандартаар sizeof(char) нь үргэлж 1 байт. Энэ нь бүх систем дээр ижил.'
+        },
+        {
+          question: 'int x; x = 5.9; printf("%d", x); Гаралт юу вэ?',
+          options: ['5', '6', '5.9', 'Алдаа'],
+          correct: '5',
+          explanation: 'float-г int-д оноохдоо автоматаар хөрвүүлэлт хийгдэж бутархай хэсэг хасагдана. 5.9 → 5 (тоймлохгүй, зөвхөн хасна).'
+        },
+        {
+          question: 'int a = 10; int *p = &a; printf("%d", *p); Гаралт юу вэ?',
+          options: ['10', 'a-ийн хаяг', '0', 'Алдаа'],
+          correct: '10',
+          explanation: 'p нь a-ийн хаягийг хадгална (pointer). *p нь pointer дээрх утгыг авна (dereference), тиймээс a-ийн утга болох 10 хэвлэгдэнэ.'
+        }
       ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return t.includes(q);
-    });
-  }, [activeCategory, query]);
-
-  // Resolve image:
-  const getItemImage = (category: Category, item: any) => {
-    if (item?.image) return item.image as string;
-    // Attempt auto mapping via filename
-    // Place images in /public/assets/menu/<category>/<slug>.jpg
-    return buildAssetPath(category, item?.name || item?.nameEn || 'item');
+    },
+    boolean: {
+      title: 'Boolean ба IF',
+      icon: '🔀',
+      questions: [
+        {
+          question: 'if (5) printf("A"); else printf("B"); Юу хэвлэгдэх вэ?',
+          options: ['A', 'B', 'Алдаа', 'Юу ч үгүй'],
+          correct: 'A',
+          explanation: 'С хэлд 0 нь false, бусад бүх тоо true гэж үзнэ. 5 нь 0 биш учир нөхцөл үнэн бөгөөд "A" хэвлэгдэнэ.'
+        },
+        {
+          question: 'int x = 10; if (x = 5) printf("YES"); Юу болох вэ?',
+          options: ['Алдаа гарна', '"YES" хэвлэгдэнэ', 'Юу ч хэвлэгдэхгүй', 'Warning'],
+          correct: '"YES" хэвлэгдэнэ',
+          explanation: 'x = 5 нь утга оноолт (харьцуулалт биш). Утга оноогдсоны дараа 5 буцааж өгөгдөх ба 5 нь true тул "YES" хэвлэгдэнэ. Харьцуулахын тулд == хэрэглэх хэрэгтэй.'
+        },
+        {
+          question: 'int a = 1, b = 2; printf("%d", a && b); Гаралт юу вэ?',
+          options: ['0', '1', '2', '3'],
+          correct: '1',
+          explanation: '&& (AND) оператор нь boolean илэрхийлэл үнэн бол 1, үгүй бол 0 буцаана. a болон b хоёулаа 0 биш (үнэн) тул 1 гарна.'
+        },
+        {
+          question: 'int x = 5; if (3 < x < 7) printf("YES"); Энэ зөв ажиллах уу?',
+          options: ['Тийм, YES хэвлэгдэнэ', 'Үгүй, логик алдаатай', 'Compiler алдаа', 'Үргэлж YES хэвлэгдэнэ'],
+          correct: 'Үргэлж YES хэвлэгдэнэ',
+          explanation: '3 < x нь 1 (үнэн) болж, дараа нь 1 < 7 шалгагдах ба энэ үргэлж үнэн. Зөв бичвэл: if (3 < x && x < 7)'
+        },
+        {
+          question: 'int x = 0; printf("%d", !x); Гаралт юу вэ?',
+          options: ['0', '1', '-1', 'Алдаа'],
+          correct: '1',
+          explanation: '! оператор нь boolean утгыг эсрэгээр нь хувиргана. 0 нь false, !0 нь true буюу 1 болно.'
+        },
+        {
+          question: 'int x = 5, y = 10; printf("%d", x || y); Гаралт юу вэ?',
+          options: ['0', '1', '5', '15'],
+          correct: '1',
+          explanation: '|| (OR) оператор нь аль нэг тал үнэн бол 1 буцаана. x нь 0 биш учир шууд 1 гарна.'
+        },
+        {
+          question: 'if (0 == 0) printf("A"); else if (1) printf("B"); else printf("C"); Юу хэвлэгдэх вэ?',
+          options: ['A', 'B', 'C', 'AB'],
+          correct: 'A',
+          explanation: '0 == 0 нь үнэн учир "A" хэвлэгдэнэ. Эхний нөхцөл үнэн бол бусад else-үүд шалгагдахгүй.'
+        },
+        {
+          question: 'int x = 10; (x > 5) ? printf("Big") : printf("Small"); Юу хэвлэгдэх вэ?',
+          options: ['Big', 'Small', 'BigSmall', 'Алдаа'],
+          correct: 'Big',
+          explanation: 'Ternary оператор (? :) нь x > 5 үнэн учир "Big" хэвлэнэ. Syntax: нөхцөл ? үнэн_үед : худал_үед'
+        },
+        {
+          question: 'int a = 5, b = 5; if (a == b == 5) printf("YES"); Юу болох вэ?',
+          options: ['YES хэвлэгдэнэ', 'Юу ч хэвлэгдэхгүй', 'Алдаа', 'Warning'],
+          correct: 'Юу ч хэвлэгдэхгүй',
+          explanation: 'a == b нь 1 (үнэн) болж, дараа нь 1 == 5 шалгагдах ба энэ худал. Зөв бичвэл: if (a == b && b == 5)'
+        },
+        {
+          question: 'if (10 & 2) printf("A"); else printf("B"); Юу хэвлэгдэх вэ?',
+          options: ['A', 'B', 'Алдаа', '10'],
+          correct: 'A',
+          explanation: '& нь bitwise AND. 10 (1010) & 2 (0010) = 2 (0010). 2 нь 0 биш тул үнэн, "A" хэвлэгдэнэ. && бол logical AND.'
+        },
+        {
+          question: 'int x = 0; if (!x) printf("Zero"); Юу хэвлэгдэх вэ?',
+          options: ['Zero', 'Юу ч үгүй', 'Алдаа', '0'],
+          correct: 'Zero',
+          explanation: '!x нь x = 0 бол үнэн (1) болно. Тиймээс "Zero" хэвлэгдэнэ. Энэ нь x == 0 шалгахтай адил.'
+        },
+        {
+          question: 'int a = 5; if (a) printf("1"); if (!a) printf("2"); printf("3"); Юу хэвлэгдэх вэ?',
+          options: ['13', '23', '123', '3'],
+          correct: '13',
+          explanation: 'a нь 0 биш тул эхний if үнэн → "1". !a нь худал тул "2" алгасагдана. "3" үргэлж хэвлэгдэнэ. Үр дүн: "13"'
+        },
+        {
+          question: 'int x = 10; if (x = 0) printf("A"); else printf("B"); Юу хэвлэгдэх вэ?',
+          options: ['A', 'B', 'Алдаа', 'AB'],
+          correct: 'B',
+          explanation: 'x = 0 нь утга оноолт. 0 оноогдож, 0 нь false учир else ажиллана. "B" хэвлэгдэнэ.'
+        },
+        {
+          question: 'printf("%d", (5 > 3) + (2 < 4)); Гаралт юу вэ?',
+          options: ['0', '1', '2', 'Алдаа'],
+          correct: '2',
+          explanation: '(5 > 3) = 1, (2 < 4) = 1. 1 + 1 = 2. Boolean илэрхийлэл нь 1 эсвэл 0 утга өгөх ба тэдгээрийг нэмж болно.'
+        },
+        {
+          question: 'int x = 5; if (x >= 5 && x <= 10) printf("IN"); else printf("OUT"); Юу хэвлэгдэх вэ?',
+          options: ['IN', 'OUT', 'INOUT', 'Алдаа'],
+          correct: 'IN',
+          explanation: 'x = 5 нь x >= 5 (үнэн) МӨРӨӨН x <= 10 (үнэн) нөхцлийг хангана. Хоёулаа үнэн тул "IN" хэвлэгдэнэ.'
+        }
+      ]
+    },
+    loops: {
+      title: 'Давталт',
+      icon: '🔄',
+      questions: [
+        {
+          question: 'for (int i = 0; i < 3; i++) printf("%d", i); Юу хэвлэгдэх вэ?',
+          options: ['012', '123', '0 1 2', 'Алдаа'],
+          correct: '012',
+          explanation: 'for давталт i = 0, 1, 2 гэсэн гурван утгатай ажиллана. printf нь зай байхгүй тул "012" гэж холбогдож хэвлэгдэнэ.'
+        },
+        {
+          question: 'int i; for (i = 0; i < 5; i++); printf("%d", i); Гаралт юу вэ?',
+          options: ['4', '5', '0', 'Алдаа'],
+          correct: '5',
+          explanation: 'for-н дараах ; нь хоосон биед үзүүлж байна. Давталт i = 5 болтол ажиллаад дуусна. Дараа нь i = 5 хэвлэгдэнэ.'
+        },
+        {
+          question: 'int x = 5; while (x--) printf("%d", x); Юу хэвлэгдэх вэ?',
+          options: ['43210', '54321', '4321', '5432'],
+          correct: '43210',
+          explanation: 'x-- нь x-г шалгасны ДАРАА хасна. x = 5, 4, 3, 2, 1 үед нөхцөл үнэн боловч хэвлэгдэх үед x нь x-- болсон байна: 4, 3, 2, 1, 0.'
+        },
+        {
+          question: 'for (int i = 0; i < 10; i++) { if (i % 2 == 0) continue; printf("%d", i); } Хэдэн тоо хэвлэгдэх вэ?',
+          options: ['5', '10', '4', '6'],
+          correct: '5',
+          explanation: 'continue нь тэгш тоонуудыг алгасна. Сондгой тоонууд 1, 3, 5, 7, 9 хэвлэгдэх тул нийт 5 тоо.'
+        },
+        {
+          question: 'int i = 0; do { printf("%d", i); } while (i > 0); Юу хэвлэгдэх вэ?',
+          options: ['0', 'Юу ч үгүй', 'Алдаа', 'Infinity'],
+          correct: '0',
+          explanation: 'do-while давталт нөхцлийг ДАРАА нь шалгадаг. Нөхцөл худал байсан ч биед 1 удаа заавал ажиллах ба 0 хэвлэгдэнэ.'
+        },
+        {
+          question: 'for (int i = 1; i <= 5; i++) { if (i == 3) break; printf("%d", i); } Юу хэвлэгдэх вэ?',
+          options: ['12', '123', '1234', '12345'],
+          correct: '12',
+          explanation: 'i = 1, 2 үед хэвлэгдэнэ. i = 3 болоход break давталтыг зогсооно. Тиймээс "12" хэвлэгдэнэ.'
+        },
+        {
+          question: 'int i = 0; while (i < 3) { printf("%d", i); i++; } Юу хэвлэгдэх вэ?',
+          options: ['012', '123', '0123', 'Алдаа'],
+          correct: '012',
+          explanation: 'while давталт i = 0, 1, 2 үед ажиллана. i = 3 болоход i < 3 худал болж зогсоно. "012" хэвлэгдэнэ.'
+        },
+        {
+          question: 'for (int i = 10; i >= 0; i--) { if (i == 5) continue; if (i == 2) break; } i-ийн сүүлчийн утга?',
+          options: ['2', '1', '0', 'Тодорхойгүй'],
+          correct: 'Тодорхойгүй',
+          explanation: 'i нь for блок дотор зарлагдсан (block scope). Давталт дууссаны дараа i нь хүрэх боломжгүй.'
+        },
+        {
+          question: 'int x = 1; while (x <= 3) { printf("%d", x); x++; } Юу хэвлэгдэх вэ?',
+          options: ['1', '12', '123', '1234'],
+          correct: '123',
+          explanation: 'x = 1, 2, 3 үед нөхцөл үнэн. x = 4 болоход x <= 3 худал болно. "123" хэвлэгдэнэ.'
+        },
+        {
+          question: 'for (int i = 0; i < 5; i += 2) printf("%d", i); Юу хэвлэгдэх вэ?',
+          options: ['024', '0246', '012', '02468'],
+          correct: '024',
+          explanation: 'i нь 2-оор нэмэгдэнэ: i = 0, 2, 4. i = 6 болоход i < 5 худал болно. "024" хэвлэгдэнэ.'
+        },
+        {
+          question: 'int i = 5; do { printf("%d", i--); } while (i); Юу хэвлэгдэх вэ?',
+          options: ['5', '54321', '543210', '5432'],
+          correct: '54321',
+          explanation: 'i-- нь хэвлэсний дараа хасагдана: 5, 4, 3, 2, 1 хэвлэгдэнэ. i = 0 болоход while (i) худал болж зогсоно.'
+        },
+        {
+          question: 'for (int i = 0, j = 0; i < 3 && j < 2; i++, j++) printf("%d", i); Хэдэн удаа хэвлэгдэх вэ?',
+          options: ['2', '3', '5', 'Алдаа'],
+          correct: '2',
+          explanation: 'Хоёр нөхцөл (i < 3 && j < 2) хоёулаа үнэн байх ёстой. j = 2 болоход j < 2 худал болно. i = 0, 1 хэвлэгдэнэ (2 удаа).'
+        },
+        {
+          question: 'int sum = 0; for (int i = 1; i <= 10; i++) sum += i; printf("%d", sum); Гаралт?',
+          options: ['45', '55', '50', '60'],
+          correct: '55',
+          explanation: '1 + 2 + 3 + ... + 10 = 55. Энэ нь арифметик прогрессын нийлбэр n(n+1)/2 = 10×11/2 = 55.'
+        },
+        {
+          question: 'for (int i = 0; i < 5; ) { printf("%d", i); i += 2; } Юу хэвлэгдэх вэ?',
+          options: ['024', '0246', '02468', 'Infinity'],
+          correct: '024',
+          explanation: 'for давталтын increment хэсэг хоосон ч биед дотор i += 2 байна. i = 0, 2, 4 хэвлэгдэнэ.'
+        },
+        {
+          question: 'int i = 0; while (i++ < 3) printf("%d", i); Юу хэвлэгдэх вэ?',
+          options: ['123', '012', '0123', '1234'],
+          correct: '123',
+          explanation: 'i++ нь шалгасны ДАРАА нэмэгдэнэ. Нөхцөл: 0<3, 1<3, 2<3 үнэн. Хэвлэгдэх үед i нь нэмэгдсэн байна: 1, 2, 3.'
+        }
+      ]
+    },
+    functions: {
+      title: 'Функц',
+      icon: '⚙️',
+      questions: [
+        {
+          question: 'void func() { return 5; } Энэ код зөв үү?',
+          options: ['Тийм', 'Үгүй, void функц утга буцаахгүй', 'Warning өгнө', 'Зарим compiler дээр'],
+          correct: 'Үгүй, void функц утга буцаахгүй',
+          explanation: 'void функц ямар ч утга буцаахгүй. Утга буцаахыг оролдвол compiler алдаа өгнө. int func() { return 5; } гэх шаардлагатай.'
+        },
+        {
+          question: 'int add(int a, int b) { return a + b; } add(3, 4.5); Юу болох вэ?',
+          options: ['7', '7.5', 'Compiler алдаа', 'Warning, 4.5 → 4 хөрвөнө'],
+          correct: 'Warning, 4.5 → 4 хөрвөнө',
+          explanation: '4.5 нь double боловч функц int хүлээн авна. Implicit хөрвүүлэлт хийгдэж 4.5 → 4 болно (warning өгч болно). Үр дүн: 3 + 4 = 7.'
+        },
+        {
+          question: 'printf("%d", add(2, 3)); int add(int a, int b) { return a + b; } Юу болох вэ?',
+          options: ['5', 'Алдаа: функц зарлагдаагүй', 'Warning өгнө', 'Runtime алдаа'],
+          correct: 'Алдаа: функц зарлагдаагүй',
+          explanation: 'С хэлд функцийг хэрэглэхээс өмнө зарлах (declare) эсвэл тодорхойлох (define) хэрэгтэй. Зөв нь: function prototype дээр эсвэл функцийг дээр тавих.'
+        },
+        {
+          question: 'void swap(int a, int b) { int t = a; a = b; b = t; } swap(x, y); x, y өөрчлөгдөх үү?',
+          options: ['Тийм', 'Үгүй', 'Зарим тохиолдолд', 'Compiler-аас хамаарна'],
+          correct: 'Үгүй',
+          explanation: 'С хэл "call by value" ашигладаг - хувьсагчийн хуулбар дамжина. Функц дотор a, b өөрчлөгдөх ч гаднах x, y хэвээр. Pointer ашиглах хэрэгтэй.'
+        },
+        {
+          question: 'int func() { static int x = 0; return ++x; } func(); func(); func(); Сүүлчийн утга?',
+          options: ['1', '2', '3', '0'],
+          correct: '3',
+          explanation: 'static хувьсагч нь функц дуусмагц устахгүй, утгаа хадгална. Эхний дуудлага: x = 1, хоёр дахь: x = 2, гурав дахь: x = 3.'
+        },
+        {
+          question: 'int func(int x) { return x * 2; } int x = 5; printf("%d", func(x) + x); Гаралт?',
+          options: ['15', '10', '20', 'Алдаа'],
+          correct: '15',
+          explanation: 'func(5) = 10, дараа нь 10 + 5 = 15. Функц дотрох x ба гаднах x нь өөр хувьсагч (өөр scope).'
+        },
+        {
+          question: 'void test() { printf("Hello"); } test; Юу болох вэ?',
+          options: ['"Hello" хэвлэгдэнэ', 'Юу ч болохгүй', 'Алдаа', 'Warning'],
+          correct: 'Юу ч болохгүй',
+          explanation: 'test; нь зөвхөн функцийн хаягийг үнэлнэ. Функцийг дуудах хэрэгтэй: test();'
+        },
+        {
+          question: 'int max(int a, int b) { return (a > b) ? a : b; } max(10, 20); Үр дүн?',
+          options: ['10', '20', '30', 'Алдаа'],
+          correct: '20',
+          explanation: 'Ternary оператор: a > b үнэн бол a, үгүй бол b буцаана. 10 > 20 нь худал тул 20 буцна.'
+        },
+        {
+          question: 'void func(int arr[]) { arr[0] = 100; } int a[] = {1,2,3}; func(a); a[0]-ийн утга?',
+          options: ['1', '100', 'Алдаа', 'Тодорхойгүй'],
+          correct: '100',
+          explanation: 'Массив нь pointer байдлаар дамжих тул функц дотор өөрчлөлт хийвэл эх массив өөрчлөгдөнө. a[0] = 100 болно.'
+        },
+        {
+          question: 'int func() { int x = 10; return x; } int *p = &func(); Энэ код зөв үү?',
+          options: ['Тийм', 'Үгүй', 'Warning', 'Зарим тохиолдолд'],
+          correct: 'Үгүй',
+          explanation: 'func() нь int утга буцаана, хаяг биш. Локал хувьсагчийн хаяг буцаах нь алдаа. Функц дуусмагц x устана.'
+        },
+        {
+          question: 'int add(int, int); Энэ юу вэ?',
+          options: ['Function definition', 'Function prototype', 'Function call', 'Алдаа'],
+          correct: 'Function prototype',
+          explanation: 'Function prototype (зарлалт) нь функцийн нэр, параметрүүдийн төрөл, буцаах төрлийг зарлана. Биед байхгүй.'
+        },
+        {
+          question: 'void func(int x) { x = x + 1; } int a = 5; func(a); printf("%d", a); Гаралт?',
+          options: ['5', '6', 'Алдаа', 'Тодорхойгүй'],
+          correct: '5',
+          explanation: 'Call by value учир a-ийн хуулбар дамжина. Функц дотор x өөрчлөгдөх ч a өөрчлөгдөхгүй. a = 5 хэвээр.'
+        },
+        {
+          question: 'int func(int x) { if (x == 0) return 1; return x * func(x - 1); } func(3); Үр дүн?',
+          options: ['3', '6', '9', '1'],
+          correct: '6',
+          explanation: 'Рекурсив функц: func(3) = 3 × func(2) = 3 × 2 × func(1) = 3 × 2 × 1 × func(0) = 3 × 2 × 1 × 1 = 6 (factorial)'
+        },
+        {
+          question: 'int x = 10; int func() { int x = 20; return x; } printf("%d", func()); Гаралт?',
+          options: ['10', '20', 'Алдаа', '30'],
+          correct: '20',
+          explanation: 'Функц дотрох локал x нь глобал x-г дарна (shadowing). func() нь өөрийн локал x = 20-ийг буцаана.'
+        },
+        {
+          question: 'void func(int *p) { *p = 50; } int x = 10; func(&x); printf("%d", x); Гаралт?',
+          options: ['10', '50', 'Алдаа', 'Хаяг'],
+          correct: '50',
+          explanation: 'Pointer дамжуулснаар функц гаднах хувьсагчийг өөрчилж чадна. *p = 50 нь x-ийг 50 болгоно.'
+        }
+      ]
+    },
+    arrays: {
+      title: 'Массив ба Тэмдэгт Мөр',
+      icon: '📚',
+      questions: [
+        {
+          question: 'int arr[5] = {1, 2}; printf("%d", arr[4]); Гаралт юу вэ?',
+          options: ['0', 'Хог утга', '2', 'Алдаа'],
+          correct: '0',
+          explanation: 'Зарим элементэд утга өгөөгүй бол үлдсэн элементүүд автоматаар 0 болно. arr[2], arr[3], arr[4] нь 0 утгатай.'
+        },
+        {
+          question: 'char str[] = "Hello"; printf("%d", sizeof(str)); Гаралт юу вэ?',
+          options: ['5', '6', '4', '8'],
+          correct: '6',
+          explanation: 'Тэмдэгт мөр төгсгөлийн \'\\0\' (null terminator) агуулна. "Hello" нь 5 тэмдэгт + 1 null = 6 байт.'
+        },
+        {
+          question: 'int arr[3] = {1, 2, 3}; arr[5] = 10; Юу болох вэ?',
+          options: ['Зөв ажиллана', 'Compiler алдаа', 'Runtime алдаа эсвэл хог утга', 'Warning'],
+          correct: 'Runtime алдаа эсвэл хог утга',
+          explanation: 'Массивын хэмжээнээс давсан индекс (buffer overflow) нь тодорхойгүй үйл ажиллагаа үүсгэнэ. Программ гацах эсвэл буруу утга бичигдэж болно.'
+        },
+        {
+          question: 'char s1[] = "ABC"; char s2[] = "ABC"; if (s1 == s2) printf("YES"); Юу хэвлэгдэх вэ?',
+          options: ['YES', 'Юу ч үгүй', 'Алдаа', 'Compiler-аас хамаарна'],
+          correct: 'Юу ч үгүй',
+          explanation: 's1 == s2 нь pointer-уудыг (хаяг) харьцуулж байна. Хоёр өөр массив өөр хаягтай учир тэнцүү биш. strcmp() ашиглах хэрэгтэй.'
+        },
+        {
+          question: 'int arr[3][2] = {{1,2}, {3,4}, {5,6}}; printf("%d", arr[2][1]); Гаралт?',
+          options: ['4', '5', '6', 'Алдаа'],
+          correct: '6',
+          explanation: 'Хоёр хэмжээст массив: arr[0] = {1,2}, arr[1] = {3,4}, arr[2] = {5,6}. arr[2][1] нь 3 дахь мөрний 2 дахь элемент: 6.'
+        },
+        {
+          question: 'int arr[] = {1, 2, 3, 4, 5}; printf("%d", sizeof(arr) / sizeof(arr[0])); Гаралт?',
+          options: ['5', '4', '20', 'Алдаа'],
+          correct: '5',
+          explanation: 'sizeof(arr) = 20 байт (5 элемент × 4 байт), sizeof(arr[0]) = 4 байт. 20 / 4 = 5 элемент.'
+        },
+        {
+          question: 'char str[10] = "Hello"; str[1] = \'a\'; printf("%s", str); Гаралт?',
+          options: ['Hello', 'Hallo', 'aello', 'Алдаа'],
+          correct: 'Hallo',
+          explanation: 'str[1] = \'e\' байсныг \'a\' болгосон. "Hello" → "Hallo".'
+        },
+        {
+          question: 'int arr[5]; printf("%d", arr[0]); Глобал массивын анхдагч утга?',
+          options: ['0', 'Хог утга', 'NULL', 'Алдаа'],
+          correct: '0',
+          explanation: 'Глобал массив автоматаар 0-р анхдагчлагдана. Локал массив бол хог утгатай байна.'
+        },
+        {
+          question: 'char str[] = "C"; printf("%d", strlen(str)); Гаралт юу вэ?',
+          options: ['1', '2', '0', 'Алдаа'],
+          correct: '1',
+          explanation: 'strlen() нь \\0 хүртэлх тэмдэгтийн тоог тоолно. "C" нь 1 тэмдэгттэй. sizeof("C") нь 2 (C + \\0).'
+        },
+        {
+          question: 'int *p = arr; Дараа нь *(p + 2) нь юутай тэнцүү вэ?',
+          options: ['arr[2]', 'arr[0] + 2', 'p[2]', 'A болон C'],
+          correct: 'A болон C',
+          explanation: 'Pointer арифметик: *(p + 2) ≡ p[2] ≡ arr[2]. Энэ нь хоёр дахь элементийг заана.'
+        },
+        {
+          question: 'char s[] = "Hello"; s = "World"; Энэ код зөв үү?',
+          options: ['Тийм', 'Үгүй', 'Warning', 'Зарим compiler дээр'],
+          correct: 'Үгүй',
+          explanation: 'Массивын нэр нь тогтмол pointer (constant). Өөр хаяг оноож болохгүй. strcpy(s, "World") ашиглах хэрэгтэй.'
+        },
+        {
+          question: 'int arr[5] = {0}; Бүх элемент хэдтэй тэнцүү вэ?',
+          options: ['0', 'Хог утга', 'Эхний элемент 0, бусад хог', 'Алдаа'],
+          correct: '0',
+          explanation: '{0} нь эхний элементийг 0 болгож, үлдсэн элементүүд автоматаар 0 болно. Бүх элемент 0.'
+        },
+        {
+          question: 'char s[5] = "Hello"; Юу болох вэ?',
+          options: ['Зөв ажиллана', 'Compiler warning/error', 'Runtime алдаа', 'Хог утга'],
+          correct: 'Compiler warning/error',
+          explanation: '"Hello" нь \\0-тэй 6 байт шаарддаг. s[5] нь 5 байт учир багтахгүй. Compiler warning эсвэл error өгнө.'
+        },
+        {
+          question: 'int arr[3]; int *p = arr; printf("%d", p == &arr[0]); Гаралт?',
+          options: ['0', '1', 'Алдаа', 'Compiler-аас хамаарна'],
+          correct: '1',
+          explanation: 'Массивын нэр arr нь &arr[0]-тэй адил. p == &arr[0] нь үнэн (1).'
+        },
+        {
+          question: 'char s1[20] = "Hello"; char s2[20]; s2 = s1; Энэ код зөв үү?',
+          options: ['Тийм', 'Үгүй', 'Warning', 'Зарим compiler дээр'],
+          correct: 'Үгүй',
+          explanation: 'Массивыг шууд утга оноож болохгүй. strcpy(s2, s1) ашиглах хэрэгтэй.'
+        }
+      ]
+    },
+    searching: {
+      title: 'Хайлт ба Эрэмбэлэлт',
+      icon: '🔍',
+      questions: [
+        {
+          question: 'Linear search-ийн хамгийн муу тохиолдлын цаг хугацаа O(?)',
+          options: ['O(1)', 'O(log n)', 'O(n)', 'O(n²)'],
+          correct: 'O(n)',
+          explanation: 'Linear search нь элемент бүрийг дараалан шалгадаг. n элементтэй массивт хамгийн муу тохиолдолд n удаа харьцуулалт хийнэ - O(n).'
+        },
+        {
+          question: 'Binary search ашиглахын тулд массив ямар байх ёстой вэ?',
+          options: ['Сондгой тоотой', 'Эрэмбэлэгдсэн', 'Тэгш тоотой', 'Давхардаагүй'],
+          correct: 'Эрэмбэлэгдсэн',
+          explanation: 'Binary search нь зөвхөн эрэмбэлэгдсэн массив дээр ажиллана. Дундаж утгыг шалгаад хагасыг алгасдаг.'
+        },
+        {
+          question: 'Bubble sort-ийн worst case time complexity O(?)',
+          options: ['O(n)', 'O(n log n)', 'O(n²)', 'O(log n)'],
+          correct: 'O(n²)',
+          explanation: 'Bubble sort нь хоёр давхар давталт хийнэ. n элементийн хувьд n×(n-1)/2 харьцуулалт - O(n²).'
+        },
+        {
+          question: 'Quick sort-ийн дундаж (average) time complexity O(?)',
+          options: ['O(n)', 'O(n log n)', 'O(n²)', 'O(log n)'],
+          correct: 'O(n log n)',
+          explanation: 'Quick sort нь дунджаар маш хурдан - O(n log n). Хамгийн муу тохиолдолд O(n²) боловч энэ ховор тохиолдоно.'
+        },
+        {
+          question: '1024 элементтэй эрэмбэлэгдсэн массивт binary search хамгийн ихдээ хэдэн удаа хайх вэ?',
+          options: ['10', '11', '12', '1024'],
+          correct: '11',
+          explanation: 'Binary search: log₂(n) + 1 удаа. log₂(1024) = 10, тиймээс 10 + 1 = 11 удаа хайна.'
+        },
+        {
+          question: 'Selection sort-ийн time complexity O(?)',
+          options: ['O(n)', 'O(n log n)', 'O(n²)', 'O(log n)'],
+          correct: 'O(n²)',
+          explanation: 'Selection sort нь хамгийн бага элементийг олж эхлүүлэхийг давтана. Бүх тохиолдолд O(n²).'
+        },
+        {
+          question: 'Merge sort-ийн space complexity O(?)',
+          options: ['O(1)', 'O(log n)', 'O(n)', 'O(n²)'],
+          correct: 'O(n)',
+          explanation: 'Merge sort нь нэмэлт O(n) санах ой шаарддаг хоёр хагасыг нэгтгэхэд.'
+        },
+        {
+          question: 'Insertion sort хамгийн сайн тохиолдолд time complexity O(?)',
+          options: ['O(1)', 'O(n)', 'O(n log n)', 'O(n²)'],
+          correct: 'O(n)',
+          explanation: 'Insertion sort аль хэдийн эрэмбэлэгдсэн массив дээр O(n) - зөвхөн нэг удаа шалгана.'
+        },
+        {
+          question: 'Binary search tree-д дундаж хайлт O(?)',
+          options: ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)'],
+          correct: 'O(log n)',
+          explanation: 'Тэнцвэртэй BST-д дундаж хайлт O(log n). Хамгийн муу тохиолдолд (skewed tree) O(n).'
+        },
+        {
+          question: '[5, 2, 8, 1, 9] массивыг bubble sort-ийн эхний давталтын дараа юу болох вэ?',
+          options: ['[2, 5, 1, 8, 9]', '[2, 1, 5, 8, 9]', '[1, 2, 5, 8, 9]', '[5, 2, 1, 8, 9]'],
+          correct: '[2, 5, 1, 8, 9]',
+          explanation: 'Bubble sort хөрш элементүүдийг харьцуулна: 5↔2 солигдоно, 5↔8 үгүй, 8↔1 солигдоно, 8↔9 үгүй. Хамгийн том 9 төгсгөлд очино.'
+        },
+        {
+          question: 'Linear search-ийн best case time complexity O(?)',
+          options: ['O(1)', 'O(log n)', 'O(n)', 'O(n²)'],
+          correct: 'O(1)',
+          explanation: 'Хайж байгаа элемент эхэнд байвал шууд олдоно - O(1).'
+        },
+        {
+          question: 'Quick sort-д pivot сонголт яагаад чухал вэ?',
+          options: ['Санах ой хэмнэнэ', 'Тогтвортой байна', 'Performance-д нөлөөлнө', 'Код богино болно'],
+          correct: 'Performance-д нөлөөлнө',
+          explanation: 'Муу pivot (жишээ: эхний элемент эрэмбэлэгдсэн массивд) worst case O(n²) үүсгэнэ. Сайн pivot O(n log n) баталгаажуулна.'
+        },
+        {
+          question: 'Хамгийн хурдан comparison-based sorting algorithm-ын доод хязгаар O(?)',
+          options: ['O(n)', 'O(n log n)', 'O(n²)', 'O(log n)'],
+          correct: 'O(n log n)',
+          explanation: 'Харьцуулалт дээр суурилсан эрэмбэлэлтийн теоретик доод хязгаар O(n log n). Энээс хурдан болохгүй.'
+        },
+        {
+          question: 'Binary search-д эхний шалгалт дундах элемент биш бол яах вэ?',
+          options: ['Эхлээс нь эхэлнэ', 'Хагасыг алгасна', 'Linear search руу шилжинэ', 'Алдаа'],
+          correct: 'Хагасыг алгасна',
+          explanation: 'Дундах элемент хайж байгаа утгаас бага бол баруун хагасыг, их бол зүүн хагасыг алгасна.'
+        },
+        {
+          question: 'Hash table-д дундаж хайлт O(?)',
+          options: ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)'],
+          correct: 'O(1)',
+          explanation: 'Hash table-д дундаж хайлт O(1) - тогтмол цаг. Collision ихтэй бол O(n) болж болно.'
+        }
+      ]
+    },
+    greedy: {
+      title: 'Greedy Алгоритм',
+      icon: '🎯',
+      questions: [
+        {
+          question: 'Greedy алгоритмын гол онцлог юу вэ?',
+          options: ['Бүх боломжийг туршина', 'Одоогийн хамгийн сайн сонголт хийнэ', 'Буцаан шалгана (backtrack)', 'Dynamic programming ашиглана'],
+          correct: 'Одоогийн хамгийн сайн сонголт хийнэ',
+          explanation: 'Greedy algorithm нь алхам бүр дээр одоогийн хамгийн сайн (оновчтой) сонголтыг хийдэг. Ирээдүйн үр дагаврыг анхаарахгүй.'
+        },
+        {
+          question: 'Зоосны бодлого: 63 төгрөг (зоос: 25, 10, 5, 1). Greedy алгоритм хэдэн зоос ашиглах вэ?',
+          options: ['5', '6', '7', '8'],
+          correct: '6',
+          explanation: 'Том зоосоос эхлэх greedy: 25×2 = 50, 10×1 = 10, 1×3 = 3. Нийт 50+10+3 = 63, 2+1+3 = 6 зоос.'
+        },
+        {
+          question: 'Activity selection бодлогод greedy алгоритм юуны дагуу сонгох вэ?',
+          options: ['Эхлэх цаг', 'Дуусах цаг', 'Үргэлжлэх хугацаа', 'Давуу эрэмбэ'],
+          correct: 'Дуусах цаг',
+          explanation: 'Greedy activity selection: хамгийн эрт дуусах үйл ажиллагааг сонгоно. Энэ нь илүү олон үйл ажиллагаа хийх боломж өгнө.'
+        },
+        {
+          question: 'Fractional Knapsack бодлогод greedy алгоритм оновчтой шийдэл өгөх үү?',
+          options: ['Үргэлж', 'Хэзээ ч үгүй', 'Заримдаа', 'Зөвхөн бага өгөгдөлд'],
+          correct: 'Үргэлж',
+          explanation: 'Fractional Knapsack-д зүйлийг хуваах боломжтой тул үнэ/жин харьцаагаар эрэмбэлээд авах greedy стратеги үргэлж оновчтой.'
+        },
+        {
+          question: '0/1 Knapsack бодлогод greedy алгоритм оновчтой шийдэл өгөх үү?',
+          options: ['Үргэлж', 'Хэзээ ч үгүй', 'Ихэнхдээ үгүй', 'Бүх тохиолдолд'],
+          correct: 'Ихэнхдээ үгүй',
+          explanation: '0/1 Knapsack-д зүйлийг бүтнээр нь авах ёстой. Greedy нь оновчтой биш, dynamic programming эсвэл backtracking шаардлагатай.'
+        },
+        {
+          question: 'Huffman coding алгоритм ямар төрөл вэ?',
+          options: ['Greedy', 'Dynamic Programming', 'Backtracking', 'Divide and Conquer'],
+          correct: 'Greedy',
+          explanation: 'Huffman coding нь greedy алгоритм - хамгийн бага давтамжтай тэмдэгтүүдийг нэгтгэж оновчтой код үүсгэнэ.'
+        },
+        {
+          question: 'Prim\'s алгоритм ямар бодлого шийднэ?',
+          options: ['Shortest path', 'Minimum spanning tree', 'Maximum flow', 'Topological sort'],
+          correct: 'Minimum spanning tree',
+          explanation: 'Prim\'s алгоритм нь greedy арга ашиглан minimum spanning tree (MST) олдог.'
+        },
+        {
+          question: 'Dijkstra\'s алгоритм сөрөг жинтэй ирмэг дээр ажилладаг уу?',
+          options: ['Тийм', 'Үгүй', 'Зарим тохиолдолд', 'Modification-тай'],
+          correct: 'Үгүй',
+          explanation: 'Dijkstra\'s нь сөрөг жинтэй ирмэг дээр буруу үр дүн өгнө. Bellman-Ford алгоритм ашиглах хэрэгтэй.'
+        },
+        {
+          question: 'Job sequencing бодлогод greedy юуны дагуу эрэмбэлэх вэ?',
+          options: ['Deadline', 'Ашиг', 'Үргэлжлэх хугацаа', 'Эхлэх цаг'],
+          correct: 'Ашиг',
+          explanation: 'Job sequencing-д ажлуудыг ашгаар нь буурахаар эрэмбэлж, deadline-аа хангах ажлуудыг сонгоно.'
+        },
+        {
+          question: 'Зоосны бодлого: 30 төгрөг (зоос: 25, 10, 1). Greedy хэдэн зоос ашиглах вэ?',
+          options: ['3', '4', '5', '6'],
+          correct: '6',
+          explanation: 'Greedy: 25×1 + 1×5 = 6 зоос. Гэхдээ оновчтой нь: 10×3 = 3 зоос! Greedy үргэлж оновчтой биш.'
+        },
+        {
+          question: 'Kruskal\'s алгоритм edge-үүдийг ямар эрэмбэлэх вэ?',
+          options: ['Өсөхөөр жингээр', 'Буурахаар жингээр', 'Санамсаргүй', 'Vertex-ээр'],
+          correct: 'Өсөхөөр жингээр',
+          explanation: 'Kruskal\'s MST алгоритм нь edge-үүдийг жингээр өсөхөөр эрэмбэлж, cycle үүсгэхгүй edge сонгоно.'
+        },
+        {
+          question: 'Greedy алгоритм хамгийн тохиромжтой бодлого аль нь вэ?',
+          options: ['Traveling Salesman', 'Subset Sum', 'Minimum Spanning Tree', '0/1 Knapsack'],
+          correct: 'Minimum Spanning Tree',
+          explanation: 'MST бодлогод (Prim\'s, Kruskal\'s) greedy үргэлж оновчтой. Бусад бодлогууд dynamic programming шаарддаг.'
+        },
+        {
+          question: 'Activity selection-д үйл ажиллагаанууд давхцаж болох уу?',
+          options: ['Тийм', 'Үгүй', 'Зарим тохиолдолд', 'Бодлогоос хамаарна'],
+          correct: 'Үгүй',
+          explanation: 'Activity selection-д давхцахгүй хамгийн олон үйл ажиллагаа сонгоно. Нэг үйл ажиллагаа дууссаны дараа дараагийнх эхэлнэ.'
+        },
+        {
+          question: 'Greedy алгоритм хэзээ optimal solution өгөх вэ?',
+          options: ['Үргэлж', 'Greedy choice property + optimal substructure', 'Хэзээ ч үгүй', 'Санамсаргүй'],
+          correct: 'Greedy choice property + optimal substructure',
+          explanation: 'Greedy нь 2 шинж чанар хангавал optimal: (1) Greedy choice property - локал оновчтой сонголт глобал оновчтой болно, (2) Optimal substructure.'
+        },
+        {
+          question: 'Egyptian Fraction бодлогод greedy юу хийх вэ?',
+          options: ['Хамгийн бага хувааж болох тоо', 'Хамгийн их хувааж болох тоо', 'Дундаж тоо', 'Санамсаргүй тоо'],
+          correct: 'Хамгийн их хувааж болох тоо',
+          explanation: 'Egyptian Fraction: бутархай тоог 1/n хэлбэрийн нийлбэр болгоход greedy хамгийн их хувааж болох unit fraction сонгоно.'
+        }
+      ]
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 transition-colors duration-300" style={{ fontFamily: 'Lato, sans-serif' }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap');
+  // LocalStorage-с өгөгдөл унших
+  useEffect(() => {
+    const savedUser = localStorage.getItem('clearn_currentUser');
+    if (savedUser) {
+      setCurrentUser(savedUser);
+      loadUserProgress(savedUser);
+    }
+  }, []);
 
-        .gold-border {
-          border: 2px solid;
-          border-image-source: linear-gradient(45deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
-          border-image-slice: 1;
-        }
-        .gold-text {
-          background: linear-gradient(45deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-        .card-shimmer {
-          background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.06) 100%);
-        }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        .cat-snap { scroll-snap-type: x proximity; }
-        .cat-snap > button { scroll-snap-align: center; }
-      `}</style>
+  // Хэрэглэгчийн ахиц хадгалах
+  const loadUserProgress = (user) => {
+    const progress = localStorage.getItem(`clearn_progress_${user}`);
+    if (progress) {
+      setScore(JSON.parse(progress));
+    }
+  };
 
-      {/* Header */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-[#D4AF37]/30 py-3 md:py-4 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-between items-center gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <img src="./assets/loground.png" alt="Grand Melody" className="h-10 md:h-12 w-auto" />
-            <span
-              style={{ fontFamily: 'Cinzel, serif' }}
-              className="text-base sm:text-lg md:text-xl tracking-[0.18em] gold-text font-bold truncate"
-            >
-              GRAND MELODY
-            </span>
+  const saveProgress = (newScore) => {
+    localStorage.setItem(`clearn_progress_${currentUser}`, JSON.stringify(newScore));
+  };
+
+  // Нэвтрэх
+  const handleLogin = () => {
+    if (userName.trim()) {
+      setCurrentUser(userName.trim());
+      localStorage.setItem('clearn_currentUser', userName.trim());
+      loadUserProgress(userName.trim());
+    }
+  };
+
+  // Гарах
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setUserName('');
+    setSelectedTopic(null);
+    setScore({ correct: 0, total: 0 });
+    localStorage.removeItem('clearn_currentUser');
+  };
+
+  // Хариулт шалгах
+  const checkAnswer = () => {
+    const currentQ = topics[selectedTopic].questions[currentQuestion];
+    const correct = userAnswer === currentQ.correct;
+    
+    setIsCorrect(correct);
+    setExplanation(currentQ.explanation);
+    setShowResult(true);
+
+    const newScore = {
+      correct: score.correct + (correct ? 1 : 0),
+      total: score.total + 1
+    };
+    setScore(newScore);
+    saveProgress(newScore);
+  };
+
+  // Дараагийн асуулт руу шилжих
+  const nextQuestion = () => {
+    const questions = topics[selectedTopic].questions;
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+      setUserAnswer('');
+      setShowResult(false);
+    } else {
+      // Тест дууссан
+      setCurrentQuestion(0);
+      setUserAnswer('');
+      setShowResult(false);
+      setSelectedTopic(null);
+    }
+  };
+
+  // Дахин оролдох
+  const retryQuestion = () => {
+    setUserAnswer('');
+    setShowResult(false);
+  };
+
+  // Нэвтрэх дэлгэц
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+          <div className="text-center mb-8">
+            <div className="text-6xl mb-4">💻</div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">С Хэлний Сургалт</h1>
+            <p className="text-gray-600">C программчлалын ур чадвараа дээшлүүлээрэй</p>
           </div>
-
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+          
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+              placeholder="Нэрээ оруулна уу"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-lg"
+            />
             <button
-              onClick={() => setLanguage(language === 'mn' ? 'en' : 'mn')}
-              style={{ fontFamily: 'Cinzel, serif' }}
-              className="px-3 sm:px-4 py-2 rounded-lg border border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/10 transition-all text-xs sm:text-sm tracking-widest"
+              onClick={handleLogin}
+              disabled={!userName.trim()}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              {language === 'mn' ? 'EN' : 'МН'}
-            </button>
-
-            <button
-              onClick={() => setShowBooking(true)}
-              style={{ fontFamily: 'Cinzel, serif' }}
-              className="bg-[#D4AF37] hover:bg-[#BF953F] text-[#151B4D] px-4 sm:px-6 md:px-8 py-2 font-bold uppercase tracking-[0.12em] transition-all text-xs sm:text-sm shadow-lg whitespace-nowrap"
-            >
-              {language === 'mn' ? 'Захиалга' : 'Book'}
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero (more responsive) */}
-      <header className="relative py-12 sm:py-16 lg:py-24 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-white via-gray-50/40 to-gray-50"></div>
-        <div className="absolute inset-0 opacity-[0.06] flex items-center justify-center">
-          <img src="/logo.png" alt="" className="w-64 sm:w-80 lg:w-96 h-auto" />
-        </div>
-
-        <div className="relative max-w-5xl mx-auto text-center px-4 sm:px-6">
-          <h1
-            style={{ fontFamily: 'Cinzel, serif' }}
-            className="text-3xl sm:text-5xl lg:text-7xl mb-4 sm:mb-6 tracking-tight gold-text font-bold"
-          >
-            Grand Melody VIP Karaoke
-          </h1>
-          <p
-            style={{ fontFamily: 'Playfair Display, serif' }}
-            className="italic text-base sm:text-xl lg:text-2xl text-gray-600 mb-6 sm:mb-8 max-w-3xl mx-auto"
-          >
-            {language === 'mn'
-              ? 'Luxury танд зориулагдсан. Монголын шилдэг караоке туршлага.'
-              : "Where luxury meets harmony. Mongolia's finest karaoke experience."}
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 max-w-2xl mx-auto">
-            <div className="flex-1">
-              <div className="relative">
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={language === 'mn' ? 'Хайх (ж: пицца, бууз, eden...)' : 'Search (e.g., pizza, buuz, eden...)'}
-                  className="w-full rounded-2xl border border-[#D4AF37]/30 bg-white px-4 py-3 pr-10 text-gray-900 shadow-sm focus:outline-none focus:border-[#D4AF37]"
-                />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#D4AF37]/70">
-                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M10 18a8 8 0 115.293-14.293A8 8 0 0110 18zm11 3l-6.2-6.2 1.4-1.4L22.4 19.6 21 21z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowBooking(true)}
-              style={{ fontFamily: 'Cinzel, serif' }}
-              className="rounded-2xl bg-[#151B4D] hover:bg-[#1A237E] text-white px-6 py-3 font-bold uppercase tracking-[0.14em] shadow-lg"
-            >
-              {language === 'mn' ? 'VIP Захиалга' : 'VIP Booking'}
-            </button>
-          </div>
-
-          <div className="w-20 sm:w-24 h-1 bg-[#D4AF37] mx-auto mt-8"></div>
-        </div>
-      </header>
-
-      {/* Category Nav */}
-      <div className="sticky top-[60px] sm:top-[68px] md:top-[73px] z-40 bg-white/95 backdrop-blur-md shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="py-4 sm:py-5 flex items-center gap-3">
-            {/* arrows - desktop */}
-            <button
-              onClick={() => scrollNavBy(-340)}
-              className="hidden md:flex items-center justify-center w-10 h-10 rounded-full border border-[#D4AF37]/40 hover:border-[#D4AF37] hover:shadow"
-              aria-label="Scroll left"
-              title="Scroll left"
-            >
-              ‹
-            </button>
-
-            <div ref={navRef} className="flex-1 flex overflow-x-auto scrollbar-hide gap-2 sm:gap-3 scroll-smooth cat-snap">
-              {(Object.keys(categoryNames) as Category[]).map((category) => (
-                <button
-                  key={category}
-                  ref={(el) => {
-                    btnRefs.current[category] = el;
-                  }}
-                  onClick={() => {
-                    setQuery('');
-                    setActiveCategory(category);
-                  }}
-                  style={{ fontFamily: 'Cinzel, serif' }}
-                  className={`flex-shrink-0 px-5 sm:px-7 py-3 sm:py-4 text-[10px] sm:text-xs tracking-[0.2em] uppercase transition-all whitespace-nowrap rounded-2xl ${
-                    activeCategory === category
-                      ? 'bg-gradient-to-r from-[#151B4D] to-[#1A237E] text-white shadow-xl scale-[1.02] gold-border'
-                      : 'bg-white border-2 border-[#D4AF37]/40 text-gray-700 hover:border-[#D4AF37] hover:shadow-lg'
-                  }`}
-                >
-                  {categoryNames[category][language]}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => scrollNavBy(340)}
-              className="hidden md:flex items-center justify-center w-10 h-10 rounded-full border border-[#D4AF37]/40 hover:border-[#D4AF37] hover:shadow"
-              aria-label="Scroll right"
-              title="Scroll right"
-            >
-              ›
+              Эхлэх
             </button>
           </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Section header with image strip */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 sm:pt-12">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-          <div>
-            <h2 style={{ fontFamily: 'Cinzel, serif' }} className="text-2xl sm:text-3xl lg:text-4xl gold-text font-bold">
-              {categoryTitle}
-            </h2>
-            <p style={{ fontFamily: 'Playfair Display, serif' }} className="text-gray-600 italic mt-2">
-              {language === 'mn'
-                ? 'Зургатай, цэгцтэй харагдац — мобайл дээр бүр илүү гоё.'
-                : 'Clean, photo-forward layout that looks great on mobile.'}
-            </p>
+  // Сэдэв сонгох дэлгэц
+  if (!selectedTopic) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div className="max-w-6xl mx-auto">
+          {/* Хэрэглэгчийн мэдээлэл */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <User className="w-10 h-10 text-blue-600" />
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800">Сайн уу, {currentUser}!</h2>
+                  <p className="text-gray-600">Сэдвээ сонгоод суралцаж эхлээрэй</p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                <LogOut className="w-5 h-5" />
+                Гарах
+              </button>
+            </div>
+            
+            {/* Статистик */}
+            <div className="mt-6 flex items-center gap-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-6 h-6 text-yellow-500" />
+                <div>
+                  <p className="text-sm text-gray-600">Нийт асуулт</p>
+                  <p className="text-2xl font-bold text-gray-800">{score.total}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-6 h-6 text-green-500" />
+                <div>
+                  <p className="text-sm text-gray-600">Зөв хариулт</p>
+                  <p className="text-2xl font-bold text-green-600">{score.correct}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-6 h-6 text-blue-500" />
+                <div>
+                  <p className="text-sm text-gray-600">Амжилт</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0}%
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {query.trim() && (
-            <div className="text-sm text-gray-600">
-              {language === 'mn' ? 'Олдсон:' : 'Found:'}{' '}
-              <span className="font-semibold text-gray-900">{visibleItems.length}</span>
+          {/* Сэдвүүд */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Object.entries(topics).map(([key, topic]) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setSelectedTopic(key);
+                  setCurrentQuestion(0);
+                  setUserAnswer('');
+                  setShowResult(false);
+                }}
+                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:-translate-y-1 text-left"
+              >
+                <div className="text-5xl mb-4">{topic.icon}</div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">{topic.title}</h3>
+                <p className="text-gray-600 mb-4">{topic.questions.length} асуулт</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-blue-600 font-semibold">Эхлэх →</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Асуулт харуулах дэлгэц
+  const currentQ = topics[selectedTopic].questions[currentQuestion];
+  const progress = ((currentQuestion + 1) / topics[selectedTopic].questions.length) * 100;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-3xl mx-auto">
+        {/* Толгой хэсэг */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => {
+                setSelectedTopic(null);
+                setCurrentQuestion(0);
+                setUserAnswer('');
+                setShowResult(false);
+              }}
+              className="text-blue-600 hover:text-blue-700 font-semibold"
+            >
+              ← Буцах
+            </button>
+            <div className="text-gray-600">
+              {currentQuestion + 1} / {topics[selectedTopic].questions.length}
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-4xl">{topics[selectedTopic].icon}</span>
+            <h2 className="text-2xl font-bold text-gray-800">{topics[selectedTopic].title}</h2>
+          </div>
+          
+          {/* Progress bar */}
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div
+              className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Асуулт */}
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <h3 className="text-xl font-semibold text-gray-800 mb-6 leading-relaxed">
+            {currentQ.question}
+          </h3>
+
+          {/* Хариултын сонголтууд */}
+          <div className="space-y-3 mb-6">
+            {currentQ.options.map((option, idx) => (
+              <button
+                key={idx}
+                onClick={() => !showResult && setUserAnswer(option)}
+                disabled={showResult}
+                className={`w-full p-4 rounded-xl text-left font-medium transition-all ${
+                  showResult
+                    ? option === currentQ.correct
+                      ? 'bg-green-100 border-2 border-green-500 text-green-800'
+                      : option === userAnswer
+                      ? 'bg-red-100 border-2 border-red-500 text-red-800'
+                      : 'bg-gray-50 text-gray-600'
+                    : userAnswer === option
+                    ? 'bg-blue-100 border-2 border-blue-500 text-blue-800'
+                    : 'bg-gray-50 hover:bg-gray-100 border-2 border-gray-200 text-gray-800'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-sm font-bold">
+                    {String.fromCharCode(65 + idx)}
+                  </span>
+                  <span>{option}</span>
+                  {showResult && option === currentQ.correct && (
+                    <CheckCircle className="w-6 h-6 text-green-600 ml-auto" />
+                  )}
+                  {showResult && option === userAnswer && option !== currentQ.correct && (
+                    <XCircle className="w-6 h-6 text-red-600 ml-auto" />
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Тайлбар */}
+          {showResult && (
+            <div className={`p-6 rounded-xl mb-6 ${
+              isCorrect ? 'bg-green-50 border-2 border-green-200' : 'bg-red-50 border-2 border-red-200'
+            }`}>
+              <div className="flex items-start gap-3">
+                {isCorrect ? (
+                  <CheckCircle className="w-7 h-7 text-green-600 flex-shrink-0 mt-1" />
+                ) : (
+                  <XCircle className="w-7 h-7 text-red-600 flex-shrink-0 mt-1" />
+                )}
+                <div>
+                  <h4 className={`font-bold text-lg mb-2 ${
+                    isCorrect ? 'text-green-800' : 'text-red-800'
+                  }`}>
+                    {isCorrect ? '🎉 Зөв!' : '❌ Буруу'}
+                  </h4>
+                  <p className="text-gray-700 leading-relaxed">{explanation}</p>
+                </div>
+              </div>
             </div>
           )}
-        </div>
-      </section>
 
-      {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-12 space-y-12 sm:space-y-16">
-        {/* Packages (now with image section) */}
-        {activeCategory === 'packages' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-            {visibleItems.map((pkg: any, index: number) => (
-              <div key={index} className="bg-white overflow-hidden shadow-2xl transition-all hover:shadow-[#D4AF37]/25 gold-border rounded-3xl">
-                <div className="p-5 sm:p-8 bg-gradient-to-r from-[#151B4D] to-[#1A237E] relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-36 h-36 opacity-5">
-                    <img src="/logo.png" alt="" className="w-full h-full object-contain" />
-                  </div>
-
-                  <div className="relative z-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div>
-                      <h3 style={{ fontFamily: 'Cinzel, serif' }} className="text-2xl sm:text-3xl text-white mb-1 tracking-wide">
-                        {pkg.name}
-                      </h3>
-                      <p className="text-3xl sm:text-4xl font-bold gold-text">{formatPrice(pkg.price)}</p>
-                    </div>
-
-                    {pkg.birthday && (
-                      <div
-                        style={{ fontFamily: 'Cinzel, serif' }}
-                        className="self-start bg-[#D4AF37] text-[#151B4D] px-3 py-1 rounded-lg text-[10px] tracking-widest uppercase font-bold"
-                      >
-                        Birthday
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="p-5 sm:p-8 bg-white space-y-6">
-                  {/* Image section */}
-                  <div className="group">
-                    <ImageBlock
-                      src={pkg.image || buildAssetPath('packages', pkg.name)}
-                      alt={pkg.name}
-                      badge={language === 'mn' ? 'Багц' : 'Package'}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                      <h4 style={{ fontFamily: 'Cinzel, serif' }} className="font-bold text-gray-800 mb-3 text-xs tracking-widest uppercase">
-                        {language === 'mn' ? 'Багцад багтсан' : 'Includes'}
-                      </h4>
-                      <ul className="space-y-2">
-                        {pkg.items.map((item: string, i: number) => (
-                          <li key={i} className="flex items-start text-gray-700">
-                            <span className="text-[#D4AF37] mr-3 text-lg leading-none">✓</span>
-                            <span className="text-sm sm:text-base">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="gold-border p-4 bg-[#FBF5B7]/10 rounded-2xl">
-                      <div className="flex items-start gap-3 text-[#B38728]">
-                        <svg className="w-7 h-7 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/>
-                        </svg>
-                        <div>
-                          <p style={{ fontFamily: 'Cinzel, serif' }} className="font-bold uppercase text-xs tracking-wider">
-                            {language === 'mn' ? 'Урамшуулал' : 'Bonus'}
-                          </p>
-                          <p className="text-sm mt-1">{pkg.bonus}</p>
-                          {pkg.birthday && (
-                            <p className="text-xs mt-2 opacity-80">
-                              {language === 'mn' ? '+ Төрсөн өдрийн чимэглэл үнэгүй' : '+ Free birthday decoration'}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setShowBooking(true)}
-                    style={{ fontFamily: 'Cinzel, serif' }}
-                    className="w-full rounded-2xl bg-[#D4AF37] hover:bg-[#BF953F] text-[#151B4D] py-3 font-bold uppercase tracking-[0.16em] transition-all shadow-lg"
-                  >
-                    {language === 'mn' ? 'Энэ багцыг захиалах' : 'Book this package'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Food / Pizza / Snacks (now always with image section + responsive cards) */}
-        {(activeCategory === 'food' || activeCategory === 'pizza' || activeCategory === 'snacks') && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-7">
-            {visibleItems.map((item: any, index: number) => (
-              <div
-                key={index}
-                className="group bg-white overflow-hidden shadow-xl hover:shadow-2xl transition-all gold-border rounded-3xl"
-              >
-                <div className="p-4 sm:p-5">
-                  <ImageBlock
-                    src={item.image || getItemImage(activeCategory, item)}
-                    alt={item.name}
-                    badge={language === 'mn' ? 'Шинэ' : 'Featured'}
-                  />
-                </div>
-
-                <div className="px-5 pb-6 sm:px-6 sm:pb-7">
-                  <h3 style={{ fontFamily: 'Cinzel, serif' }} className="text-lg sm:text-xl font-bold text-gray-900">
-                    {language === 'mn' ? item.name : item.nameEn || item.name}
-                  </h3>
-
-                  {item.description && (
-                    <p style={{ fontFamily: 'Playfair Display, serif' }} className="text-sm text-gray-600 mt-2 italic leading-relaxed">
-                      {item.description}
-                    </p>
-                  )}
-
-                  <div className="mt-5 flex items-end justify-between gap-3 border-t border-[#D4AF37]/20 pt-4">
-                    <span className="text-2xl sm:text-3xl font-bold gold-text">{formatPrice(item.price)}</span>
-                    <button
-                      onClick={() => setShowBooking(true)}
-                      className="rounded-xl border border-[#D4AF37]/40 px-3 py-2 text-xs font-semibold text-[#151B4D] hover:bg-[#D4AF37]/10"
-                      style={{ fontFamily: 'Cinzel, serif' }}
-                    >
-                      {language === 'mn' ? 'Захиалах' : 'Reserve'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Beer / Soft / Hot (now with images + better responsive layout) */}
-        {(activeCategory === 'beer' || activeCategory === 'softDrinks' || activeCategory === 'hotDrinks') && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-7">
-            {visibleItems.map((item: any, index: number) => (
-              <div
-                key={index}
-                className="group bg-white overflow-hidden shadow-lg hover:shadow-xl transition-all border border-[#D4AF37]/25 hover:border-[#D4AF37]/60 rounded-3xl"
-              >
-                <div className="p-4 sm:p-5">
-                  <ImageBlock src={item.image || getItemImage(activeCategory, item)} alt={item.name} />
-                </div>
-
-                <div className="px-5 pb-6 sm:px-6 sm:pb-7">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <h3 style={{ fontFamily: 'Cinzel, serif' }} className="text-lg sm:text-xl font-bold text-gray-900 truncate">
-                        {item.name}
-                      </h3>
-                      {item.size && (
-                        <p className="text-xs text-gray-500 uppercase tracking-wider mt-1">{item.size}</p>
-                      )}
-                    </div>
-
-                    <span className="text-xl sm:text-2xl font-bold gold-text whitespace-nowrap">
-                      {formatPrice(item.price)}
-                    </span>
-                  </div>
-
-                  <div className="mt-5 border-t border-[#D4AF37]/20 pt-4 flex justify-end">
-                    <button
-                      onClick={() => setShowBooking(true)}
-                      className="rounded-xl border border-[#D4AF37]/40 px-3 py-2 text-xs font-semibold text-[#151B4D] hover:bg-[#D4AF37]/10"
-                      style={{ fontFamily: 'Cinzel, serif' }}
-                    >
-                      {language === 'mn' ? 'Захиалах' : 'Reserve'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Spirits (Vodka/Whisky/Gin) - add image + responsive */}
-        {(activeCategory === 'vodka' || activeCategory === 'whisky' || activeCategory === 'ginTequila') && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-            {visibleItems.map((item: any, index: number) => (
-              <div
-                key={index}
-                className="group bg-white overflow-hidden shadow-2xl gold-border hover:shadow-[#D4AF37]/25 transition-all rounded-3xl"
-              >
-                <div className="p-5 sm:p-8 bg-gradient-to-r from-[#151B4D] to-[#1A237E] relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-36 h-36 opacity-5">
-                    <img src="/logo.png" alt="" className="w-full h-full object-contain" />
-                  </div>
-                  <h3 style={{ fontFamily: 'Cinzel, serif' }} className="text-2xl sm:text-3xl font-bold text-white tracking-wide relative z-10">
-                    {item.name}
-                  </h3>
-                </div>
-
-                <div className="p-5 sm:p-8 bg-white space-y-6">
-                  <ImageBlock src={item.image || getItemImage(activeCategory, item)} alt={item.name} badge={language === 'mn' ? 'Сонголт' : 'Selection'} />
-
-                  <div className="space-y-4">
-                    {item.sizes.map((size: any, sizeIndex: number) => (
-                      <div
-                        key={sizeIndex}
-                        className="flex justify-between items-center py-3 border-b border-[#D4AF37]/20 last:border-0"
-                      >
-                        <span className="text-gray-700 font-semibold text-sm sm:text-base uppercase tracking-wide">
-                          {size.size}
-                        </span>
-                        <span className="text-xl sm:text-2xl font-bold gold-text">{formatPrice(size.price)}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => setShowBooking(true)}
-                    style={{ fontFamily: 'Cinzel, serif' }}
-                    className="w-full rounded-2xl bg-[#D4AF37] hover:bg-[#BF953F] text-[#151B4D] py-3 font-bold uppercase tracking-[0.16em] transition-all shadow-lg"
-                  >
-                    {language === 'mn' ? 'Захиалга хийх' : 'Make Reservation'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Wine */}
-        {activeCategory === 'wine' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-7">
-            {visibleItems.map((item: any, index: number) => (
-              <div
-                key={index}
-                className="group bg-white overflow-hidden shadow-lg hover:shadow-xl transition-all border border-[#D4AF37]/25 hover:border-[#D4AF37]/60 rounded-3xl"
-              >
-                <div className="p-4 sm:p-5">
-                  <ImageBlock src={item.image || getItemImage('wine', item)} alt={item.name} />
-                </div>
-
-                <div className="px-5 pb-6 sm:px-6 sm:pb-7 text-center">
-                  <h3 style={{ fontFamily: 'Cinzel, serif' }} className="text-base sm:text-lg font-bold text-gray-900 leading-tight">
-                    {item.name}
-                  </h3>
-                  <div className="mt-5 border-t border-[#D4AF37]/20 pt-4">
-                    <span className="text-xl sm:text-2xl font-bold gold-text">{formatPrice(item.price)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Liqueur */}
-        {activeCategory === 'liqueur' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-7">
-            {visibleItems.map((item: any, index: number) => (
-              <div
-                key={index}
-                className="group bg-white overflow-hidden shadow-lg hover:shadow-xl transition-all border border-[#D4AF37]/25 hover:border-[#D4AF37]/60 rounded-3xl"
-              >
-                <div className="p-4 sm:p-5">
-                  <ImageBlock src={item.image || getItemImage('liqueur', item)} alt={item.name} />
-                </div>
-
-                <div className="px-5 pb-6 sm:px-6 sm:pb-7 text-center">
-                  <h3 style={{ fontFamily: 'Cinzel, serif' }} className="text-lg sm:text-xl font-bold text-gray-900">
-                    {item.name}
-                  </h3>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide mt-1">{item.size}</p>
-                  <div className="mt-5 border-t border-[#D4AF37]/20 pt-4">
-                    <span className="text-xl sm:text-2xl font-bold gold-text">{formatPrice(item.price)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
-
-      {/* CTA */}
-      <section className="py-16 sm:py-20 text-center px-4 sm:px-6 bg-gradient-to-b from-gray-50 to-gray-100">
-        <div className="max-w-3xl mx-auto gold-border p-7 sm:p-10 md:p-12 relative overflow-hidden card-shimmer bg-white rounded-3xl">
-          <div className="absolute -top-10 -right-10 opacity-5">
-            <img src="/logo.png" alt="" className="w-56 sm:w-64" />
-          </div>
-          <h2 style={{ fontFamily: 'Cinzel, serif' }} className="text-3xl sm:text-4xl lg:text-5xl mb-4 sm:mb-6 gold-text font-bold tracking-tight">
-            {language === 'mn' ? 'Бэлэн үү?' : 'Ready for your encore?'}
-          </h2>
-          <p style={{ fontFamily: 'Playfair Display, serif' }} className="mb-8 sm:mb-10 text-gray-600 italic text-base sm:text-lg">
-            {language === 'mn'
-              ? 'Захиалгаа өнөөдөр хийж, дурсамжтай үдшийг эхлүүлээрэй.'
-              : 'Reservations are highly recommended for weekend sessions.'}
-          </p>
-          <button
-            onClick={() => setShowBooking(true)}
-            style={{ fontFamily: 'Cinzel, serif' }}
-            className="rounded-2xl bg-[#D4AF37] hover:bg-[#BF953F] text-[#151B4D] px-8 sm:px-12 py-4 font-bold uppercase tracking-[0.2em] transition-all shadow-xl"
-          >
-            {language === 'mn' ? 'Захиалга өгөх' : 'Reserve Now'}
-          </button>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer
-        className="bg-[#151B4D] text-white py-12 sm:py-16 px-4 sm:px-6 gold-border"
-        style={{ borderTop: '2px solid', borderImageSource: 'linear-gradient(45deg, #BF953F, #FCF6BA, #B38728)', borderImageSlice: 1 }}
-      >
-        <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-10 sm:gap-12">
-          <div>
-            <div className="flex items-center gap-3 mb-5 sm:mb-6">
-              <img src="/logo.png" alt="Grand Melody" className="h-14 sm:h-16 w-auto" />
-            </div>
-            <p className="opacity-70 leading-relaxed mb-6">
-              {language === 'mn'
-                ? 'Монголын шилдэг VIP караоке. Luxury туршлага, дэлхийн чанарын үйлчилгээ.'
-                : "Mongolia's finest VIP karaoke. Luxury experience, world-class service."}
-            </p>
-          </div>
-          <div>
-            <h4 style={{ fontFamily: 'Cinzel, serif' }} className="font-bold uppercase tracking-widest mb-5 sm:mb-6 text-[#D4AF37] text-xs sm:text-sm">
-              {language === 'mn' ? 'Ажиллах цаг' : 'Hours'}
-            </h4>
-            <ul className="space-y-2 opacity-70 text-sm">
-              <li>{language === 'mn' ? 'Да-Пү: 18:00 - 01:00' : 'Mon-Thu: 6PM - 1AM'}</li>
-              <li>{language === 'mn' ? 'Ба-Ня: 14:00 - 03:00' : 'Fri-Sat: 2PM - 3AM'}</li>
-              <li>{language === 'mn' ? 'Ням: 14:00 - 24:00' : 'Sun: 2PM - Midnight'}</li>
-            </ul>
-          </div>
-          <div>
-            <h4 style={{ fontFamily: 'Cinzel, serif' }} className="font-bold uppercase tracking-widest mb-5 sm:mb-6 text-[#D4AF37] text-xs sm:text-sm">
-              {language === 'mn' ? 'Холбоо барих' : 'Contact'}
-            </h4>
-            <address className="not-italic opacity-70 space-y-2 text-sm">
-              Улаанбаатар
-              <br />
-              +976 XXXX XXXX
-              <br />
-              info@grandmelody.mn
-            </address>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto mt-12 sm:mt-16 pt-7 border-t border-white/10 text-center opacity-40 text-xs sm:text-sm">
-          © 2026 Grand Melody VIP Karaoke. All Rights Reserved.
-        </div>
-      </footer>
-
-      {/* Booking Modal */}
-      {showBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-white shadow-2xl max-w-md w-full p-6 sm:p-8 relative gold-border rounded-3xl">
-            <button
-              onClick={() => setShowBooking(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold"
-            >
-              ✕
-            </button>
-
-            <h2 style={{ fontFamily: 'Cinzel, serif' }} className="text-2xl sm:text-3xl gold-text font-bold mb-6 tracking-wide">
-              {language === 'mn' ? 'Захиалга өгөх' : 'Make a Reservation'}
-            </h2>
-
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                alert(language === 'mn' ? 'Таны захиалга амжилттай илгээгдлээ!' : 'Booking sent!');
-                setShowBooking(false);
-              }}
-            >
-              <div>
-                <label style={{ fontFamily: 'Cinzel, serif' }} className="block text-xs tracking-wider uppercase text-gray-700 mb-2">
-                  {language === 'mn' ? 'Нэр' : 'Name'}
-                </label>
-                <input type="text" required className="w-full rounded-2xl px-4 py-3 border border-[#D4AF37]/30 bg-white text-gray-900 focus:border-[#D4AF37] focus:outline-none transition-colors" />
-              </div>
-
-              <div>
-                <label style={{ fontFamily: 'Cinzel, serif' }} className="block text-xs tracking-wider uppercase text-gray-700 mb-2">
-                  {language === 'mn' ? 'Утас' : 'Phone'}
-                </label>
-                <input type="tel" required className="w-full rounded-2xl px-4 py-3 border border-[#D4AF37]/30 bg-white text-gray-900 focus:border-[#D4AF37] focus:outline-none transition-colors" />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label style={{ fontFamily: 'Cinzel, serif' }} className="block text-xs tracking-wider uppercase text-gray-700 mb-2">
-                    {language === 'mn' ? 'Огноо' : 'Date'}
-                  </label>
-                  <input type="date" required className="w-full rounded-2xl px-4 py-3 border border-[#D4AF37]/30 bg-white text-gray-900 focus:border-[#D4AF37] focus:outline-none transition-colors" />
-                </div>
-
-                <div>
-                  <label style={{ fontFamily: 'Cinzel, serif' }} className="block text-xs tracking-wider uppercase text-gray-700 mb-2">
-                    {language === 'mn' ? 'Хүний тоо' : 'Guests'}
-                  </label>
-                  <input type="number" min="1" required className="w-full rounded-2xl px-4 py-3 border border-[#D4AF37]/30 bg-white text-gray-900 focus:border-[#D4AF37] focus:outline-none transition-colors" />
-                </div>
-              </div>
-
+          {/* Товчнууд */}
+          <div className="flex gap-3">
+            {!showResult ? (
               <button
-                type="submit"
-                style={{ fontFamily: 'Cinzel, serif' }}
-                className="w-full rounded-2xl py-4 bg-[#D4AF37] hover:bg-[#BF953F] text-[#151B4D] font-bold uppercase tracking-[0.15em] transition-all shadow-lg mt-6"
+                onClick={checkAnswer}
+                disabled={!userAnswer}
+                className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
-                {language === 'mn' ? 'Илгээх' : 'Submit'}
+                Шалгах
               </button>
-            </form>
-
-            <p className="mt-5 text-xs text-gray-500">
-              {language === 'mn'
-                ? 'Зургуудаа /public/assets/menu/... дотор байрлуулбал автоматаар гарна.'
-                : 'Place images under /public/assets/menu/... and they will show automatically.'}
-            </p>
+            ) : (
+              <>
+                {!isCorrect && (
+                  <button
+                    onClick={retryQuestion}
+                    className="flex-1 flex items-center justify-center gap-2 bg-orange-500 text-white py-3 rounded-xl font-semibold hover:bg-orange-600 transition-colors"
+                  >
+                    <RefreshCw className="w-5 h-5" />
+                    Дахин оролдох
+                  </button>
+                )}
+                <button
+                  onClick={nextQuestion}
+                  className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition-colors"
+                >
+                  {currentQuestion < topics[selectedTopic].questions.length - 1 ? 'Дараагийнх →' : 'Дуусгах ✓'}
+                </button>
+              </>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
-}
+};
+
+export default CLearningApp;
